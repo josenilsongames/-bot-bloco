@@ -1,3 +1,18 @@
+export default async function handler(req, res) {
+  // ===== LIBERA CORS =====
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  // ===== FIM CORS =====
+
+  // TEU CÓDIGO ANTIGO COMEÇA AQUI PRA BAIXO
+  // const bloco = ...
+  // ...
+}
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 
