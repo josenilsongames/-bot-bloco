@@ -1,12 +1,10 @@
 import admin from 'firebase-admin';
 
 if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    }),
+    credential: admin.credential.cert(serviceAccount),
   });
 }
 
@@ -19,24 +17,23 @@ export default async function handler(req, res) {
   
   try {
     const doc = await ref.get();
-    let data = doc.data();
     
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Documento bloco_atual nao encontrado' });
+    }
+    
+    let data = doc.data();
     let numero = data.numero;
     let proximoBloco = data.timestamp;
     const agora = Date.now();
 
-    // Se já venceu, o BOT soma +10min sozinho
     while (agora >= proximoBloco) {
       numero = numero + 1;
-      proximoBloco = proximoBloco + 600000; // +10 minutos
+      proximoBloco = proximoBloco + 600000;
     }
 
-    // Salva o novo valor no Firebase
     if (proximoBloco !== data.timestamp) {
-      await ref.set({ 
-        numero: numero, 
-        timestamp: proximoBloco 
-      });
+      await ref.set({ numero, timestamp: proximoBloco });
     }
 
     res.status(200).json({
@@ -45,6 +42,7 @@ export default async function handler(req, res) {
     });
     
   } catch (error) {
+    console.error('Erro:', error);
     res.status(500).json({ error: error.message });
   }
 }
