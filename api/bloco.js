@@ -21,37 +21,30 @@ export default async function handler(req, res) {
     const doc = await ref.get();
     let data = doc.data();
     
-    // Se não existe nada, cria o primeiro
-    if (!data) {
-      data = {
-        numero: 989025,
-        timestamp: 1780262890000
-      };
-    }
-    
     let numero = data.numero;
     let proximoBloco = data.timestamp;
     const agora = Date.now();
 
-    // SE O TEMPO JÁ VENCEU, O BOT SOMA +10MIN
-    if (agora >= proximoBloco) {
-      numero = numero + 1; // Próximo bloco
+    // Se já venceu, o BOT soma +10min sozinho
+    while (agora >= proximoBloco) {
+      numero = numero + 1;
       proximoBloco = proximoBloco + 600000; // +10 minutos
-      
-      // Salva no Firebase igual você fazia manual
+    }
+
+    // Salva o novo valor no Firebase
+    if (proximoBloco !== data.timestamp) {
       await ref.set({ 
         numero: numero, 
         timestamp: proximoBloco 
       });
     }
 
-    // Manda o tempo pro jogo
     res.status(200).json({
       currentBlock: numero,
       nextBlockTime: proximoBloco
     });
     
   } catch (error) {
-    res.status(500).json({ error: 'Erro Firebase' });
+    res.status(500).json({ error: error.message });
   }
 }
