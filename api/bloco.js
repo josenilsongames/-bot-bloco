@@ -1,51 +1,57 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import admin from 'firebase-admin';
 
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-};
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    }),
+  });
+}
 
-const app = getApps().length === 0? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
+const db = admin.firestore();
 
 export default async function handler(req, res) {
-  // ===== LIBERA CORS =====
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  // ===== FIM CORS =====
-
+  
+  const ref = db.collection('recompensa_status').doc('bloco_atual');
+  
   try {
-    const blocoRef = doc(db, "global", "bloco");
-    const snap = await getDoc(blocoRef);
+    const doc = await ref.get();
+    let data = doc.data();
+    
+    // Se não existe nada, cria o primeiro
+    if (!data) {
+      data = {
+        numero: 989025,
+        timestamp: 1780262890000
+      };
+    }
+    
+    let numero = data.numero;
+    let proximoBloco = data.timestamp;
+    const agora = Date.now();
 
-    if (!snap.exists()) {
-      return res.status(404).json({ error: 'Documento não encontrado' });
+    // SE O TEMPO JÁ VENCEU, O BOT SOMA +10MIN
+    if (agora >= proximoBloco) {
+      numero = numero + 1; // Próximo bloco
+      proximoBloco = proximoBloco + 600000; // +10 minutos
+      
+      // Salva no Firebase igual você fazia manual
+      await ref.set({ 
+        numero: numero, 
+        timestamp: proximoBloco 
+      });
     }
 
-    const data = snap.data();
-    const novoNumero = (data.numero || 0) + 1;
-    const proximoTempo = (data.proximoBloco || Date.now()) + 600000;
-
-    await updateDoc(blocoRef, {
-      numero: novoNumero,
-      proximoBloco: proximoTempo
-    });
-
-    // IMPORTANTE: Retorna os dados que o jogo precisa
+    // Manda o tempo pro jogo
     res.status(200).json({
-      currentBlock: novoNumero,
-      nextBlockTime: proximoTempo
+      currentBlock: numero,
+      nextBlockTime: proximoBloco
     });
-
+    
   } catch (error) {
-    console.error('Erro:', error);
-    res.status(500).json({ error: 'Erro ao buscar bloco' });
+    res.status(500).json({ error: 'Erro Firebase' });
   }
 }
