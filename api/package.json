@@ -1,13 +1,8 @@
 {
   "name": "bot-bloco",
   "version": "1.0.0",
-  "dependencies": {
-    "firebase-admin": "^12.0.0"
-  }
-}
-{
   "type": "module",
   "dependencies": {
-    "firebase": "^10.7.1"
+    "firebase-admin": "^12.0.0"
   }
 }
